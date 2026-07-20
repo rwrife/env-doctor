@@ -93,6 +93,9 @@ variables:
     secret: true
 ```
 
+See [`docs/schema-format.md`](./docs/schema-format.md) for the formal schema
+specification and loader validation rules.
+
 Example output:
 
 ```
@@ -110,7 +113,7 @@ env-doctor: checking .env against env.schema.yaml
 ## Current status / next milestones
 
 - [x] Repository bootstrapped with README and PLAN
-- [ ] Define the schema format (`env.schema.yaml`) and parser
+- [x] Define the schema format (`env.schema.yaml`) and parser
 - [ ] Implement `check` command with required/type/range validation
 - [ ] Implement `diff` command for env drift
 - [ ] Implement `init` schema generation from an existing `.env`
