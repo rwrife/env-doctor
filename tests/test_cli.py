@@ -57,3 +57,40 @@ def test_cli_check_uses_process_environment_when_env_not_provided(tmp_path, monk
 
     exit_code = main(["check", "--schema", str(schema_path)])
     assert exit_code == 0
+
+
+def test_cli_diff_reports_added_removed_changed_and_masks_secrets(tmp_path, capsys) -> None:
+    baseline = tmp_path / ".env.example"
+    baseline.write_text(
+        "A=1\nB=2\nAPI_TOKEN=oldtoken\n",
+        encoding="utf-8",
+    )
+    target = tmp_path / ".env"
+    target.write_text(
+        "A=1\nC=3\nAPI_TOKEN=newtoken\n",
+        encoding="utf-8",
+    )
+
+    exit_code = main(["diff", "--a", str(baseline), "--b", str(target)])
+
+    captured = capsys.readouterr().out
+    assert exit_code == 1
+    assert "B" in captured and "removed" in captured
+    assert "C" in captured and "added" in captured
+    assert "API_TOKEN" in captured and "changed" in captured
+    assert "newtoken" not in captured
+    assert "oldtoken" not in captured
+    assert "***" in captured
+
+
+def test_cli_diff_returns_zero_when_no_drift(tmp_path, capsys) -> None:
+    baseline = tmp_path / "a.env"
+    target = tmp_path / "b.env"
+    baseline.write_text("A=1\nB=2\n", encoding="utf-8")
+    target.write_text("A=1\nB=2\n", encoding="utf-8")
+
+    exit_code = main(["diff", "--a", str(baseline), "--b", str(target)])
+
+    captured = capsys.readouterr().out
+    assert exit_code == 0
+    assert "no drift detected" in captured
