@@ -8,6 +8,7 @@ import sys
 from collections.abc import Sequence
 
 from .checks import CheckReport, validate_environment
+from .diffing import diff_environments, format_value
 from .dotenv import DotenvParseError, load_dotenv
 from .schema import SchemaError, load_schema
 
@@ -25,6 +26,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Treat unexpected variables as errors",
     )
     check_parser.set_defaults(handler=_run_check)
+
+    diff_parser = subparsers.add_parser("diff", help="Compare two env files and report drift")
+    diff_parser.add_argument("--a", dest="a_path", required=True, help="Baseline .env file path")
+    diff_parser.add_argument("--b", dest="b_path", required=True, help="Target .env file path")
+    diff_parser.set_defaults(handler=_run_diff)
 
     return parser
 
@@ -61,6 +67,44 @@ def _run_check(args: argparse.Namespace) -> int:
     return report.exit_code(strict=args.strict)
 
 
+def _run_diff(args: argparse.Namespace) -> int:
+    a_env = load_dotenv(args.a_path)
+    b_env = load_dotenv(args.b_path)
+    report = diff_environments(a_env, b_env)
+
+    _print_diff_report(report, a_label=args.a_path, b_label=args.b_path)
+    print(f"env-doctor: compared {args.a_path} to {args.b_path}")
+
+    return 1 if report.has_drift else 0
+
+
+def _print_diff_report(report, a_label: str, b_label: str) -> None:
+    if not report.entries:
+        print(f"✓ no drift detected between {a_label} and {b_label}")
+        return
+
+    for entry in report.entries:
+        marker = _diff_marker(entry.kind)
+        if entry.kind == "added":
+            print(f"{marker} {entry.key:<24} added    in {b_label}={format_value(entry.key, entry.b_value)}")
+            continue
+        if entry.kind == "removed":
+            print(f"{marker} {entry.key:<24} removed  from {a_label}={format_value(entry.key, entry.a_value)}")
+            continue
+
+        print(
+            f"{marker} {entry.key:<24} changed  "
+            f"{a_label}={format_value(entry.key, entry.a_value)} -> "
+            f"{b_label}={format_value(entry.key, entry.b_value)}"
+        )
+
+    print(
+        "summary: "
+        f"added={report.added}, removed={report.removed}, changed={report.changed}, "
+        f"drift={len(report.entries)}"
+    )
+
+
 def _print_report(report: CheckReport) -> None:
     for item in report.items:
         marker = _status_marker(item.status)
@@ -86,6 +130,16 @@ def _status_marker(status: str) -> str:
         return "✗"
     if status == "unexpected":
         return "⚠"
+    return "?"
+
+
+def _diff_marker(kind: str) -> str:
+    if kind == "added":
+        return "+"
+    if kind == "removed":
+        return "-"
+    if kind == "changed":
+        return "~"
     return "?"
 
 
