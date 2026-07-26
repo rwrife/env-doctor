@@ -3,6 +3,7 @@ from __future__ import annotations
 import textwrap
 
 from env_doctor.cli import main
+from env_doctor.schema import load_schema
 
 
 def test_cli_check_returns_nonzero_when_errors_exist(tmp_path, capsys) -> None:
@@ -94,3 +95,29 @@ def test_cli_diff_returns_zero_when_no_drift(tmp_path, capsys) -> None:
     captured = capsys.readouterr().out
     assert exit_code == 0
     assert "no drift detected" in captured
+
+
+def test_cli_init_infers_types_and_round_trips_into_check(tmp_path, capsys) -> None:
+    dotenv_path = tmp_path / ".env"
+    dotenv_path.write_text(
+        "PORT=8080\nDEBUG=true\nDATABASE_URL=https://example.com/db\nAPP_NAME=demo\n",
+        encoding="utf-8",
+    )
+
+    exit_code = main(["init", "--from", str(dotenv_path)])
+    generated_schema = capsys.readouterr().out
+
+    assert exit_code == 0
+
+    schema_path = tmp_path / "env.schema.yaml"
+    schema_path.write_text(generated_schema, encoding="utf-8")
+
+    parsed_schema = load_schema(schema_path)
+    assert parsed_schema.variables["PORT"].type == "int"
+    assert parsed_schema.variables["DEBUG"].type == "bool"
+    assert parsed_schema.variables["DATABASE_URL"].type == "url"
+    assert parsed_schema.variables["APP_NAME"].type == "string"
+    assert all(spec.required for spec in parsed_schema.variables.values())
+
+    check_exit_code = main(["check", "--schema", str(schema_path), "--env", str(dotenv_path)])
+    assert check_exit_code == 0

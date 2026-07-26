@@ -11,6 +11,7 @@ from .checks import CheckReport, validate_environment
 from .diffing import diff_environments, format_value
 from .dotenv import DotenvParseError, load_dotenv
 from .schema import SchemaError, load_schema
+from .scaffold import schema_yaml_from_environment
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -31,6 +32,10 @@ def build_parser() -> argparse.ArgumentParser:
     diff_parser.add_argument("--a", dest="a_path", required=True, help="Baseline .env file path")
     diff_parser.add_argument("--b", dest="b_path", required=True, help="Target .env file path")
     diff_parser.set_defaults(handler=_run_diff)
+
+    init_parser = subparsers.add_parser("init", help="Generate a starter schema from a .env file")
+    init_parser.add_argument("--from", dest="from_path", required=True, help="Source .env file path")
+    init_parser.set_defaults(handler=_run_init)
 
     return parser
 
@@ -76,6 +81,13 @@ def _run_diff(args: argparse.Namespace) -> int:
     print(f"env-doctor: compared {args.a_path} to {args.b_path}")
 
     return 1 if report.has_drift else 0
+
+
+def _run_init(args: argparse.Namespace) -> int:
+    environment = load_dotenv(args.from_path)
+    schema_yaml = schema_yaml_from_environment(environment)
+    print(schema_yaml, end="")
+    return 0
 
 
 def _print_diff_report(report, a_label: str, b_label: str) -> None:
