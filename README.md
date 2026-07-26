@@ -64,6 +64,9 @@ env-doctor check --schema env.schema.yaml
 # Validate a specific .env file, strict mode (unexpected vars are errors)
 env-doctor check --schema env.schema.yaml --env .env.production --strict
 
+# Emit machine-readable JSON for CI
+env-doctor check --schema env.schema.yaml --env .env --json
+
 # Diff two env sources and show drift
 env-doctor diff --a .env.example --b .env
 
@@ -110,14 +113,61 @@ env-doctor: checking .env against env.schema.yaml
 2 errors, 1 warning — environment is NOT healthy
 ```
 
+Example JSON output (`--json`):
+
+```json
+{
+  "counts": {
+    "invalid": 1,
+    "missing": 0,
+    "ok": 1,
+    "unexpected": 1
+  },
+  "errors": 1,
+  "items": [
+    {
+      "message": "ok",
+      "name": "APP_NAME",
+      "source": "env",
+      "status": "ok",
+      "value": "demo"
+    },
+    {
+      "message": "expected int but got 'abc'",
+      "name": "PORT",
+      "source": "env",
+      "status": "invalid",
+      "value": "abc"
+    },
+    {
+      "message": "present but not declared in schema",
+      "name": "EXTRA",
+      "source": "env",
+      "status": "unexpected",
+      "value": "1"
+    }
+  ],
+  "schema": "env.schema.yaml",
+  "source": ".env",
+  "strict": false,
+  "warnings": 1
+}
+```
+
+Exit codes (`check`):
+
+- `0` — healthy (or warnings only in non-strict mode)
+- `1` — one or more errors (invalid/missing), or warnings promoted to errors by `--strict`
+- `2` — CLI/schema/.env usage errors (bad args, malformed schema/.env)
+
 ## Current status / next milestones
 
 - [x] Repository bootstrapped with README and PLAN
 - [x] Define the schema format (`env.schema.yaml`) and parser
-- [ ] Implement `check` command with required/type/range validation
-- [ ] Implement `diff` command for env drift
-- [ ] Implement `init` schema generation from an existing `.env`
-- [ ] Machine-readable output (`--json`) and non-zero exit codes for CI
+- [x] Implement `check` command with required/type/range validation
+- [x] Implement `diff` command for env drift
+- [x] Implement `init` schema generation from an existing `.env`
+- [x] Machine-readable output (`--json`) and non-zero exit codes for CI
 - [ ] Packaging and installation instructions
 
 See [PLAN.md](./PLAN.md) for scope, technical approach, and milestones.

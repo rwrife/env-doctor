@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import textwrap
 
 from env_doctor.cli import main
@@ -58,6 +59,64 @@ def test_cli_check_uses_process_environment_when_env_not_provided(tmp_path, monk
 
     exit_code = main(["check", "--schema", str(schema_path)])
     assert exit_code == 0
+
+
+def test_cli_check_json_output_is_machine_readable(tmp_path, capsys) -> None:
+    schema_path = tmp_path / "env.schema.yaml"
+    schema_path.write_text(
+        textwrap.dedent(
+            """
+            variables:
+              APP_NAME:
+                required: true
+                type: string
+              PORT:
+                required: true
+                type: int
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    dotenv_path = tmp_path / ".env"
+    dotenv_path.write_text("APP_NAME=demo\nPORT=bad\nEXTRA=1\n", encoding="utf-8")
+
+    exit_code = main(["check", "--schema", str(schema_path), "--env", str(dotenv_path), "--json"])
+
+    captured = capsys.readouterr().out
+    payload = json.loads(captured)
+
+    assert exit_code == 1
+    assert payload["schema"] == str(schema_path)
+    assert payload["source"] == str(dotenv_path)
+    assert payload["strict"] is False
+    assert payload["counts"] == {"ok": 1, "missing": 0, "invalid": 1, "unexpected": 1}
+    assert payload["errors"] == 1
+    assert payload["warnings"] == 1
+
+
+def test_cli_check_strict_promotes_unexpected_to_error(tmp_path) -> None:
+    schema_path = tmp_path / "env.schema.yaml"
+    schema_path.write_text(
+        textwrap.dedent(
+            """
+            variables:
+              APP_NAME:
+                required: true
+                type: string
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    dotenv_path = tmp_path / ".env"
+    dotenv_path.write_text("APP_NAME=demo\nEXTRA=1\n", encoding="utf-8")
+
+    non_strict_code = main(["check", "--schema", str(schema_path), "--env", str(dotenv_path)])
+    strict_code = main(["check", "--schema", str(schema_path), "--env", str(dotenv_path), "--strict"])
+
+    assert non_strict_code == 0
+    assert strict_code == 1
 
 
 def test_cli_diff_reports_added_removed_changed_and_masks_secrets(tmp_path, capsys) -> None:
