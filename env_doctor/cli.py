@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 from collections.abc import Sequence
@@ -25,6 +26,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--strict",
         action="store_true",
         help="Treat unexpected variables as errors",
+    )
+    check_parser.add_argument(
+        "--json",
+        dest="json_output",
+        action="store_true",
+        help="Emit machine-readable JSON report",
     )
     check_parser.set_defaults(handler=_run_check)
 
@@ -66,8 +73,15 @@ def _run_check(args: argparse.Namespace) -> int:
         source_name = "process environment"
 
     report = validate_environment(schema, environment, strict=args.strict)
-    _print_report(report)
-    print(f"env-doctor: checked {source_name} against {args.schema}")
+    if args.json_output:
+        payload = report.to_dict()
+        payload["strict"] = bool(args.strict)
+        payload["schema"] = args.schema
+        payload["source"] = source_name
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        _print_report(report)
+        print(f"env-doctor: checked {source_name} against {args.schema}")
 
     return report.exit_code(strict=args.strict)
 

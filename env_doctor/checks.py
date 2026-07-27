@@ -46,7 +46,7 @@ class CheckReport:
         if self.errors > 0:
             return 1
         if strict and self.warnings > 0:
-            return 2
+            return 1
         return 0
 
     def to_dict(self) -> dict[str, Any]:
