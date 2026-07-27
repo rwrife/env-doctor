@@ -38,19 +38,27 @@ instead of a cryptic runtime crash three layers deep.
 
 ## How to use
 
-> Status: early scaffolding. The CLI surface below is the target design; see
-> **Current status** for what actually works today.
-
-1. Install (planned):
+1. Install from source:
    ```bash
-   pipx install env-doctor      # or: pip install env-doctor
+   git clone https://github.com/rwrife/env-doctor.git
+   cd env-doctor
+
+   # preferred isolated install
+   pipx install .
+
+   # or install into the active Python environment
+   pip install .
    ```
-2. Create a schema describing the variables your app expects (see example
+2. Confirm the command is available:
+   ```bash
+   env-doctor --help
+   ```
+3. Create a schema describing the variables your app expects (see example
    below), or generate one from an existing `.env`:
    ```bash
    env-doctor init --from .env > env.schema.yaml
    ```
-3. Run a check against your environment:
+4. Run a check against your environment:
    ```bash
    env-doctor check --schema env.schema.yaml --env .env
    ```
@@ -168,7 +176,8 @@ Exit codes (`check`):
 - [x] Implement `diff` command for env drift
 - [x] Implement `init` schema generation from an existing `.env`
 - [x] Machine-readable output (`--json`) and non-zero exit codes for CI
-- [ ] Packaging and installation instructions
+- [x] Minimal GitHub Actions workflow runs install + test checks
+- [x] Packaging and installation instructions
 
 See [PLAN.md](./PLAN.md) for scope, technical approach, and milestones.
 
